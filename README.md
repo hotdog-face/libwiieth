@@ -2,6 +2,8 @@
 
 Wired Ethernet for Wii homebrew, over a USB LAN adapter, with its own driver and TCP/IP stack.
 
+Built for [WIIZARD](https://www.mitchellv.me/work/wiizard), a garage arcade of softmodded Wiis on CRTs · by [Mitchell Vizensky](https://www.mitchellv.me), game UX designer
+
 The Wii's own network stack (IOS) only runs the few USB LAN adapters it knows. Plug in another one and `net_init`
 fails (we saw -24) and the adapter's link light never comes on: IOS never powers up its PHY. libwiieth leaves IOS's
 network alone and drives the adapter itself:
