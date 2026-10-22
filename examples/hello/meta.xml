@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>wiieth-hello</name>
+  <coder>Mitchell Vizensky</coder>
+  <version>0.1.0</version>
+  <short_description>libwiieth example</short_description>
+  <long_description>Wired Ethernet demo: DHCP on a USB LAN adapter, status page on port 80, echo on port 7. Needs an ASIX AX88772/A/B USB LAN adapter. HOME or START exits.</long_description>
+  <ahb_access/>
+</app>

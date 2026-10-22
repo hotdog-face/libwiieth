@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<app version="1">
+  <name>wiieth-netx</name>
+  <coder>Mitchell Vizensky</coder>
+  <version>0.1.0</version>
+  <short_description>libwiieth example</short_description>
+  <long_description>Plain net_* code on the cable when an adapter is plugged in, on Wi-Fi when not. Needs an ASIX AX88772/A/B USB LAN adapter. HOME or START exits.</long_description>
+  <ahb_access/>
+</app>
