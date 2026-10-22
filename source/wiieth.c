@@ -126,6 +126,13 @@ unsigned int wiieth_gateway(void) {
 
 int wiieth_link(void) { return link_up; }
 
+int wiieth_stop(int timeout_ms) {
+    if (!started) return 1;
+    int clean = asix_close(timeout_ms);      // (the link watcher then reads link down and tells lwIP; no USB)
+    wiieth_logf("wiieth: stopped%s", clean ? "" : " (receive thread still in IOS)");
+    return clean;
+}
+
 void wiieth_status(char *out, int size) {
     char st[256];
     asix_stats(st, sizeof st);

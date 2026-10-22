@@ -10,5 +10,7 @@ First standalone release, extracted from a Wii arcade-cabinet launcher where the
 - lwIP 2.2.1 netif with DHCP and a link watcher; BSD socket calls with libogc's conventions (`wiieth.h`).
 - lwIP OS layer for libogc LWP threads.
 - netx: optional `net_*` router with wired-first, Wi-Fi-fallback `netx_init` (`wiieth_netx.h`).
+- `wiieth_stop()` / `asix_close()`: stop all USB traffic before an IOS reload or reset (a request in flight
+  during the reload can wedge the console).
 - Logging through a callback (`wiieth_set_log`), configurable DHCP hostname.
 - Makefile (`lib/libwiieth.a`, `make examples`, `make install`), Docker build script, examples `hello` and `netx`.

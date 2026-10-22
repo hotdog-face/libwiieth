@@ -76,7 +76,7 @@ int main(int argc, char **argv) {
     if (r < 0) {
         printf("  No network (%d)\n", (int)r);
         while (!quit_pressed()) VIDEO_WaitVSync();
-        return 0;
+        wiieth_stop(200); return 0;
     }
     u32 a = net_gethostip();
     printf("  Up on %s: %u.%u.%u.%u - try curl http://%u.%u.%u.%u/\n", netx_wired ? "the cable" : "Wi-Fi",
@@ -84,5 +84,6 @@ int main(int argc, char **argv) {
     lwp_t t;
     LWP_CreateThread(&t, server, NULL, NULL, 32 * 1024, 50);
     while (!quit_pressed()) VIDEO_WaitVSync();
+    wiieth_stop(200);                        // no USB request may meet the IOS reload on exit
     return 0;
 }

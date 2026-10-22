@@ -77,6 +77,7 @@ static mutex_t ctrl_lock = LWP_MUTEX_NULL;     // control transfers (cbuf, the M
 static volatile u32 rx_frames, rx_bytes, rx_bad, tx_frames, tx_err, rx_err;
 static volatile s32 last_rx_err;
 static lwp_t rx_thread = LWP_THREAD_NULL;
+static volatile int rx_running;
 static asix_rx_fn rx_fn;
 static u16 dev_pid;
 static char steps[512];                      // every reset step's result, for asix_open's msg
@@ -89,6 +90,7 @@ static void msleep(int ms) { usleep(ms * 1000); }
 
 static s32 ax_write(u8 cmd, u16 value, u16 index, u16 size, const void *data) {
     LWP_MutexLock(ctrl_lock);
+    if (!opened) { LWP_MutexUnlock(ctrl_lock); return -1; }   // closed meanwhile (asix_close)
     if (size) memcpy(cbuf, data, size);
     DCFlushRange(cbuf, 64);                  // IOS reads memory, not our cache (control transfers aren't flushed for us)
     s32 r = USB_WriteCtrlMsg(fd, USB_CTRLTYPE_DIR_HOST2DEVICE | USB_CTRLTYPE_TYPE_VENDOR | USB_CTRLTYPE_REC_DEVICE,
@@ -98,6 +100,7 @@ static s32 ax_write(u8 cmd, u16 value, u16 index, u16 size, const void *data) {
 }
 static s32 ax_read(u8 cmd, u16 value, u16 index, u16 size, void *data) {
     LWP_MutexLock(ctrl_lock);
+    if (!opened) { LWP_MutexUnlock(ctrl_lock); return -1; }
     DCFlushRange(cbuf, 64);                  // nothing dirty may land on top of what the adapter sends
     s32 r = USB_ReadCtrlMsg(fd, USB_CTRLTYPE_DIR_DEVICE2HOST | USB_CTRLTYPE_TYPE_VENDOR | USB_CTRLTYPE_REC_DEVICE,
                             cmd, value, index, size, cbuf);
@@ -273,6 +276,7 @@ int asix_apply_link(void) {
 int asix_send(const void *frame, int len) {
     if (!opened || len <= 0 || len > 1514) return -1;
     LWP_MutexLock(tx_lock);
+    if (!opened) { LWP_MutexUnlock(tx_lock); return -1; }
     u32 hdr = (u32)len | ((u32)(len ^ 0xffff) << 16);
     txbuf[0] = hdr; txbuf[1] = hdr >> 8; txbuf[2] = hdr >> 16; txbuf[3] = hdr >> 24;   // little-endian header
     memcpy(txbuf + 4, frame, len);
@@ -297,6 +301,7 @@ static void *rx_loop(void *unused) {
         DCInvalidateRange(rxbuf, RX_BUF);
         s32 n = USB_ReadBlkMsg(fd, ep_in, RX_BUF, rxbuf);
         DCInvalidateRange(rxbuf, RX_BUF);
+        if (!opened) break;                  // asix_close: the device is going away, issue nothing more
         if (n < 0) { rx_err++; last_rx_err = n; msleep(n == -7022 ? 1000 : 20); continue; }
         if (n == 0) continue;
         if (have + n > RX_STREAM) have = 0;  // lost sync
@@ -315,12 +320,16 @@ static void *rx_loop(void *unused) {
         }
         if (off) { memmove(stream, stream + off, have - off); have -= off; }
     }
+    rx_running = 0;
     return NULL;
 }
 
 void asix_start_rx(asix_rx_fn fn) {
     rx_fn = fn;
-    if (opened && rx_thread == LWP_THREAD_NULL) LWP_CreateThread(&rx_thread, rx_loop, NULL, NULL, 16 * 1024, 60);
+    if (opened && rx_thread == LWP_THREAD_NULL) {
+        rx_running = 1;
+        if (LWP_CreateThread(&rx_thread, rx_loop, NULL, NULL, 16 * 1024, 60) < 0) rx_running = 0;
+    }
 }
 
 void asix_stats(char *out, int size) {
@@ -334,4 +343,21 @@ void asix_stats(char *out, int size) {
              up ? (mbps == 100 ? "100" : "10") : "down", up ? (full ? "FD" : "HD") : "", asix_mdio_read(MII_BMCR) & 0xffff,
              bmsr & 0xffff, asix_mdio_read(MII_LPA) & 0xffff, m[0] | m[1] << 8, (unsigned)rx_frames, (unsigned)rx_bytes,
              (unsigned)rx_bad, (unsigned)rx_err, (int)last_rx_err, (unsigned)tx_frames, (unsigned)tx_err);
+}
+
+// Before an IOS reload (exiting to the loader, launching another DOL) or a reset: no USB request may be in flight
+// or follow, or IOS's relaunch can wedge. Waits for any control or bulk-out transfer, marks the driver closed (every
+// later call fails at once), closes the device so the receive thread's pending bulk-in returns, and gives that
+// thread up to timeout_ms to leave. Returns 1 if it did (0 = still blocked in IOS). Not reopenable.
+int asix_close(int timeout_ms) {
+    if (!opened) return !rx_running;
+    LWP_MutexLock(ctrl_lock);
+    LWP_MutexLock(tx_lock);
+    opened = 0;
+    LWP_MutexUnlock(tx_lock);
+    LWP_MutexUnlock(ctrl_lock);
+    USB_CloseDevice(&fd);
+    fd = -1;
+    for (int t = 0; t < timeout_ms && rx_running; t += 10) msleep(10);
+    return !rx_running;
 }

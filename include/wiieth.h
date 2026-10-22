@@ -32,6 +32,11 @@ int wiieth_link(void);                       // 1 = cable link up
 void wiieth_status(char *out, int size);     // one line: address, gateway, DHCP state, link, driver counters
 void wiieth_sniff_hook(void (*fn)(const unsigned char *frame, int len));   // every received frame (debugging)
 
+// Call before leaving the app (exit to the loader, launching another DOL, SYS_ResetSystem): stops all USB traffic
+// to the adapter so IOS's reload doesn't meet a pending request. Waits up to timeout_ms (200 is plenty) for the
+// receive thread; 1 = clean. Wired sockets fail from then on; the stack can't be started again in this run.
+int wiieth_stop(int timeout_ms);
+
 // BSD sockets on the wired stack (lwIP). TCP and UDP over IPv4. Blocking by default.
 int wiieth_socket(int domain, int type, int protocol);
 int wiieth_bind(int s, const void *addr, int addrlen);

@@ -76,7 +76,13 @@ if (wiieth_present()) {
         ...
     }
 }
+...
+wiieth_stop(200);                          // before exit / reset / launching another DOL
 ```
+
+**Before leaving the app** (exit to the loader, `SYS_ResetSystem`, launching another DOL), call `wiieth_stop(200)`:
+it waits out any USB request in flight, closes the adapter so the receive thread's pending bulk read returns, and
+makes sure nothing new is sent to IOS while it reloads. A USB request meeting an IOS reload can freeze the console.
 
 Socket calls follow libogc's `net_*` convention: a result >= 0, or a negative errno. Blocking by default;
 `wiieth_set_nonblock`, `wiieth_set_timeout` (receive/send timeouts) are there for the rest. Sockets are thread-safe
@@ -93,6 +99,8 @@ doesn't work.
 if (netx_init(20000) == 0)    // cable if an adapter gets an address within 20 s, else IOS's net_init (Wi-Fi)
     printf("on %s\n", netx_wired ? "the cable" : "Wi-Fi");
 s32 s = net_socket(AF_INET, SOCK_STREAM, IPPROTO_IP);   // unchanged code: goes to the network in use
+...
+wiieth_stop(200);             // before leaving, whichever network was used (harmless if wired never started)
 ```
 
 netx routes `net_socket bind listen accept connect send sendto recv recvfrom close fcntl gethostip`. New sockets go
@@ -128,8 +136,9 @@ Measured on an original Wii (RVL-001) with the TRENDnet TU2-ET100 on a 100 Mbit/
 - IPv4 only; no DNS on the wired stack (`LWIP_DNS` is off: use addresses, or resolve over Wi-Fi), no multicast
   receive (the multicast filter is left empty), no IGMP.
 - No `select`/`poll` wrapper: use blocking sockets in threads, non-blocking sockets, or timeouts.
-- No shutdown: once started, the driver and lwIP run until the app exits (an IOS reload, as on every exit to the
-  loader, resets the USB device). Unplugging and replugging the adapter while running isn't handled.
+- No restart: `wiieth_stop()` (call it before exiting, launching another DOL or resetting) quiets the adapter for
+  good; the stack can't be started again in the same run. Unplugging and replugging the adapter while running isn't
+  handled.
 - Link state is polled every 500 ms.
 - lwIP's symbols (`tcp_*`, `pbuf_*`, `netif_*`, `sys_*`, ...) are global: don't link a second copy of lwIP.
 - One adapter, AX88772 family, VID 0b95 only (see above).

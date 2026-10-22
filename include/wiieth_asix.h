@@ -26,6 +26,7 @@ int asix_apply_link(void);                  // program the MAC's medium mode to 
 int asix_send(const void *frame, int len);  // one Ethernet frame, 14..1514 bytes, no FCS; 0 = sent
 void asix_start_rx(asix_rx_fn fn);          // start the receive thread: fn(frame, len) for every frame received
 void asix_stats(char *out, int size);       // one line: link, PHY registers, medium mode, frame/error counters
+int asix_close(int timeout_ms);              // before an IOS reload / reset: stop all USB traffic (see asix.c); 1 = clean
 
 // Debugging: MII register read on the internal PHY, and a raw vendor control request (len <= 32;
 // in = 1 reads into data, in = 0 writes data). Both return < 0 on failure.

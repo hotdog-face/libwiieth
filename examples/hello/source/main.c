@@ -119,13 +119,13 @@ int main(int argc, char **argv) {
     if (wiieth_start(msg, sizeof msg) < 0) {
         printf("  Couldn't start the adapter: %s\n", msg);
         while (!quit_pressed()) VIDEO_WaitVSync();
-        return 0;
+        wiieth_stop(200); return 0;
     }
     printf("  Waiting for DHCP");
     unsigned int a;
     int frames = 0;
     while (!(a = wiieth_ip())) {
-        if (quit_pressed()) return 0;
+        if (quit_pressed()) { wiieth_stop(200); return 0; }
         VIDEO_WaitVSync();
         if (++frames % 60 == 0) { printf("."); fflush(stdout); }
     }
@@ -137,5 +137,6 @@ int main(int argc, char **argv) {
     LWP_CreateThread(&t, http_thread, NULL, NULL, 32 * 1024, 50);
     LWP_CreateThread(&t, echo_thread, NULL, NULL, 32 * 1024, 50);
     while (!quit_pressed()) VIDEO_WaitVSync();
+    wiieth_stop(200);                        // no USB request may meet the IOS reload on exit
     return 0;
 }
