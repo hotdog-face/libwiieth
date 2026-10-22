@@ -16,7 +16,7 @@ network alone and drives the adapter itself:
 As far as we know it is the only public homebrew USB LAN driver for the Wii. MIT licence (lwIP keeps its own BSD
 licence).
 
-![Wii -> USB adapter -> libwiieth's driver -> lwIP -> your app](docs/driver-diagram.jpg)
+![Wii -> USB adapter -> our driver -> lwIP -> the WIIZARD launcher](docs/driver-diagram.jpg)
 
 libwiieth came out of [WIIZARD](https://github.com/hotdog-face/wiizard), a launcher for Wii arcade cabinets on CRTs.
 The first cabinet sits next to the router on a TRENDnet TU2-ET100, an adapter IOS can't run, so the launcher learned
